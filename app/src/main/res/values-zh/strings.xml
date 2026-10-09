@@ -48,9 +48,13 @@
     <string name="preview_empty_hint">请先保存账号或点击测试连接以预览组件效果。</string>
     <string name="toast_cookie_pasted">已从剪贴板粘贴 Cookie</string>
     <string name="msg_fill_required">测试前请输入 UID 和 Cookie。</string>
+    <string name="msg_fill_required_save">保存前请输入 UID 和 Cookie。</string>
     <string name="msg_connecting">正在连接米哈游 API…</string>
+    <string name="msg_saving_syncing">正在保存配置并同步…</string>
     <string name="msg_success_verified">连接成功！数据已验证。</string>
     <string name="msg_save_success">配置已保存！后台同步已排队，桌面组件已更新。</string>
+    <string name="msg_api_error">API 错误 (%1$d): %2$s</string>
+    <string name="msg_network_error">网络错误: %1$s</string>
 
     <!-- Cookie Guide Dialog -->
     <string name="btn_cookie_guide">如何手动获取 Cookie？</string>
@@ -84,4 +88,6 @@
     <string name="color_preset_crimson">火元素红</string>
     <string name="btn_apply_appearance">保存并应用到桌面组件</string>
     <string name="toast_appearance_applied">桌面组件外观已更新！</string>
+    <string name="bg_opacity_glass">完全透明 (0%%)</string>
+    <string name="bg_opacity_solid">完全不透明 (100%%)</string>
 </resources>

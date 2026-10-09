@@ -24,6 +24,16 @@ import com.genshin.dailynote.widget.GenshinGlanceWidget
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
+sealed class UiText {
+    data class DynamicString(val value: String) : UiText()
+    data class StringResource(val resId: Int, val args: List<Any> = emptyList()) : UiText()
+
+    fun asString(context: Context): String = when (this) {
+        is DynamicString -> value
+        is StringResource -> context.getString(resId, *args.toTypedArray())
+    }
+}
+
 data class MainUiState(
     val uid: String = "",
     val server: String = "os_asia",
@@ -31,7 +41,7 @@ data class MainUiState(
     val isTesting: Boolean = false,
     val testResult: ApiResult<DailyNoteData>? = null,
     val isSavingAndSyncing: Boolean = false,
-    val statusMessage: String? = null,
+    val statusMessage: UiText? = null,
     val lastSyncTimestamp: Long = 0L,
     val lastSyncError: String? = null,
     val extrapolatedNote: ExtrapolationUtils.ExtrapolatedNote? = null
@@ -102,12 +112,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun testConnection() {
         val current = _uiState.value
         if (current.uid.isBlank() || current.cookie.isBlank()) {
-            _uiState.update { it.copy(statusMessage = "Please enter both UID and Cookie before testing.") }
+            _uiState.update { it.copy(statusMessage = UiText.StringResource(com.genshin.dailynote.R.string.msg_fill_required)) }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isTesting = true, statusMessage = "Connecting to HoYoverse API...", testResult = null) }
+            _uiState.update {
+                it.copy(
+                    isTesting = true,
+                    statusMessage = UiText.StringResource(com.genshin.dailynote.R.string.msg_connecting),
+                    testResult = null
+                )
+            }
             val result = repository.testConnection(
                 uid = current.uid,
                 server = current.server,
@@ -118,9 +134,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isTesting = false,
                     testResult = result,
                     statusMessage = when (result) {
-                        is ApiResult.Success -> "Connection successful! Data verified."
-                        is ApiResult.Error -> "API Error (${result.code}): ${result.message}"
-                        is ApiResult.NetworkError -> "Network Error: ${result.exception.localizedMessage}"
+                        is ApiResult.Success -> UiText.StringResource(com.genshin.dailynote.R.string.msg_success_verified)
+                        is ApiResult.Error -> UiText.StringResource(
+                            com.genshin.dailynote.R.string.msg_api_error,
+                            listOf(result.code, result.message)
+                        )
+                        is ApiResult.NetworkError -> UiText.StringResource(
+                            com.genshin.dailynote.R.string.msg_network_error,
+                            listOf(result.exception.localizedMessage ?: "")
+                        )
                     }
                 )
             }
@@ -130,12 +152,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveAndSync() {
         val current = _uiState.value
         if (current.uid.isBlank() || current.cookie.isBlank()) {
-            _uiState.update { it.copy(statusMessage = "Please provide both UID and Cookie to save.") }
+            _uiState.update { it.copy(statusMessage = UiText.StringResource(com.genshin.dailynote.R.string.msg_fill_required_save)) }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSavingAndSyncing = true, statusMessage = "Saving credentials & syncing...") }
+            _uiState.update {
+                it.copy(
+                    isSavingAndSyncing = true,
+                    statusMessage = UiText.StringResource(com.genshin.dailynote.R.string.msg_saving_syncing)
+                )
+            }
             repository.saveCredentials(current.uid, current.server, current.cookie)
 
             // Trigger immediate sync
@@ -150,7 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     isSavingAndSyncing = false,
-                    statusMessage = "Configuration saved! Background sync enqueued and widget updated.",
+                    statusMessage = UiText.StringResource(com.genshin.dailynote.R.string.msg_save_success),
                     extrapolatedNote = note
                 )
             }

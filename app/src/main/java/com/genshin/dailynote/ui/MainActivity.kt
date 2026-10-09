@@ -225,7 +225,7 @@ class MainActivity : ComponentActivity() {
                         // Status / Notification Banner
                         uiState.statusMessage?.let { msg ->
                             StatusBanner(
-                                message = msg,
+                                message = msg.asString(context),
                                 isError = uiState.testResult is ApiResult.Error || uiState.testResult is ApiResult.NetworkError
                             )
                         }
@@ -659,7 +659,13 @@ private fun WidgetAppearanceCard(
                             fontSize = 12.sp
                         )
                         Text(
-                            text = if (appearance.alpha == 0f) "Glass (0%)" else if (appearance.alpha == 1f) "Solid (100%)" else "${(appearance.alpha * 100).toInt()}%",
+                            text = if (appearance.alpha == 0f) {
+                                stringResource(R.string.bg_opacity_glass)
+                            } else if (appearance.alpha == 1f) {
+                                stringResource(R.string.bg_opacity_solid)
+                            } else {
+                                "${(appearance.alpha * 100).toInt()}%"
+                            },
                             color = PrimaryCyan,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold

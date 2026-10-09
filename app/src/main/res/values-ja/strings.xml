@@ -48,9 +48,13 @@
     <string name="preview_empty_hint">認証情報を保存または接続テストを行ってプレビューを表示してください。</string>
     <string name="toast_cookie_pasted">クリップボードからCookieを貼り付けました</string>
     <string name="msg_fill_required">テスト前にUIDとCookieを入力してください。</string>
+    <string name="msg_fill_required_save">保存前にUIDとCookieを入力してください。</string>
     <string name="msg_connecting">HoYoverse APIに接続中…</string>
+    <string name="msg_saving_syncing">設定を保存して同期中…</string>
     <string name="msg_success_verified">接続成功！データを確認しました。</string>
     <string name="msg_save_success">設定を保存しました！バックグラウンド同期を登録し、ウィジェットを更新しました。</string>
+    <string name="msg_api_error">API エラー (%1$d): %2$s</string>
+    <string name="msg_network_error">ネットワークエラー: %1$s</string>
 
     <!-- Cookie Guide Dialog -->
     <string name="btn_cookie_guide">手動でCookieを取得する方法</string>
@@ -84,4 +88,6 @@
     <string name="color_preset_crimson">炎クリムゾン</string>
     <string name="btn_apply_appearance">保存してウィジェットに適用</string>
     <string name="toast_appearance_applied">ウィジェットの外観を更新しました！</string>
+    <string name="bg_opacity_glass">完全透明 (0%%)</string>
+    <string name="bg_opacity_solid">不透明 (100%%)</string>
 </resources>
