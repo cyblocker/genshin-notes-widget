@@ -44,6 +44,11 @@ import com.genshin.dailynote.data.local.ExtrapolationUtils.ExtrapolatedNote
 import com.genshin.dailynote.data.repository.UserConfig
 import com.genshin.dailynote.ui.MainActivity
 
+import android.graphics.Bitmap
+import androidx.glance.layout.ContentScale
+import com.genshin.dailynote.data.repository.WidgetAppearance
+import com.genshin.dailynote.util.ImageUtils
+
 class GenshinGlanceWidget : GlanceAppWidget() {
 
     companion object {
@@ -64,18 +69,28 @@ class GenshinGlanceWidget : GlanceAppWidget() {
         val app = context.applicationContext as? GenshinApp ?: GenshinApp.instance
         val config = app.preferencesRepository.getUserConfig()
         val note = app.preferencesRepository.getExtrapolatedNote()
+        val appearance = app.preferencesRepository.getWidgetAppearance()
+        val customBgBitmap = if (appearance.bgType == "IMAGE") {
+            ImageUtils.loadWidgetBackgroundBitmap(context)
+        } else null
 
         provideContent {
             val size = LocalSize.current
-            WidgetContainer(config = config, note = note, size = size)
+            WidgetContainer(
+                config = config,
+                note = note,
+                size = size,
+                appearance = appearance,
+                customBgBitmap = customBgBitmap
+            )
         }
     }
 }
 
 // Color Palette for Dark Theme
 private val BgColor = Color(0xFF13161F)
-private val CardBg = Color(0xFF1C202E)
-private val CardInnerBg = Color(0xFF242A3D)
+private val CardBg = Color(0xCC1C202E)
+private val CardInnerBg = Color(0xCC242A3D)
 private val DividerColor = Color(0xFF2F374E)
 private val TextPrimary = Color(0xFFF1F5F9)
 private val TextSecondary = Color(0xFF94A3B8)
@@ -91,30 +106,68 @@ private val OrangeAccent = Color(0xFFFB923C)
 private fun WidgetContainer(
     config: UserConfig,
     note: ExtrapolatedNote?,
-    size: DpSize
+    size: DpSize,
+    appearance: WidgetAppearance,
+    customBgBitmap: Bitmap?
 ) {
     val isTall = size.height >= 210.dp
+    val parsedColor = try {
+        Color(android.graphics.Color.parseColor(appearance.colorHex))
+    } catch (e: Exception) {
+        BgColor
+    }
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ColorProvider(BgColor))
             .cornerRadius(16.dp)
-            .padding(horizontal = 8.dp, vertical = if (isTall) 8.dp else 6.dp)
             .clickable(actionStartActivity<MainActivity>())
     ) {
-        if (note == null || config.uid.isBlank()) {
-            UnconfiguredView()
-        } else if (isTall) {
-            TallDailyNoteView(config = config, note = note)
-        } else if (size.height >= 100.dp) {
-            if (size.width < 220.dp) {
-                Narrow2x2DailyNoteView(config = config, note = note)
-            } else {
-                Standard4x2DailyNoteView(config = config, note = note)
+        // Layer 1: Background (Image or Color)
+        if (appearance.bgType == "IMAGE" && customBgBitmap != null) {
+            Image(
+                provider = ImageProvider(customBgBitmap),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = GlanceModifier.fillMaxSize()
+            )
+            // Layer 2: Dimming Scrim
+            if (appearance.dimming > 0.05f) {
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .background(ColorProvider(Color.Black.copy(alpha = appearance.dimming)))
+                ) {}
             }
         } else {
-            UltraCompactDailyNoteView(note = note)
+            // Solid or Translucent Color
+            val bgWithAlpha = parsedColor.copy(alpha = appearance.alpha)
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .background(ColorProvider(bgWithAlpha))
+            ) {}
+        }
+
+        // Layer 3: Widget Content
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = if (isTall) 8.dp else 6.dp)
+        ) {
+            if (note == null || config.uid.isBlank()) {
+                UnconfiguredView()
+            } else if (isTall) {
+                TallDailyNoteView(config = config, note = note)
+            } else if (size.height >= 100.dp) {
+                if (size.width < 220.dp) {
+                    Narrow2x2DailyNoteView(config = config, note = note)
+                } else {
+                    Standard4x2DailyNoteView(config = config, note = note)
+                }
+            } else {
+                UltraCompactDailyNoteView(note = note)
+            }
         }
     }
 }

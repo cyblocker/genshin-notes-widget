@@ -65,4 +65,21 @@
     <string name="login_region_label">地域:</string>
     <string name="login_region_global">グローバル (HoYoLAB)</string>
     <string name="login_region_cn">中国本土 (米遊社)</string>
+
+    <!-- Appearance / Customization -->
+    <string name="appearance_title">ウィジェット外観設定</string>
+    <string name="bg_mode_color">カラー＆透明度</string>
+    <string name="bg_mode_image">カスタム背景画像</string>
+    <string name="bg_color_presets">カラープリセット</string>
+    <string name="bg_opacity_label">背景の不透明度: %d%%</string>
+    <string name="bg_dimming_label">画像の暗さ調整: %d%%</string>
+    <string name="btn_choose_image">アルバムから画像を選択</string>
+    <string name="btn_remove_image">背景画像を削除</string>
+    <string name="color_preset_slate">スレート</string>
+    <string name="color_preset_black">OLEDブラック</string>
+    <string name="color_preset_navy">ネイビー</string>
+    <string name="color_preset_teal">風ティール</string>
+    <string name="color_preset_amber">岩アンバー</string>
+    <string name="color_preset_purple">雷パープル</string>
+    <string name="color_preset_crimson">炎クリムゾン</string>
 </resources>

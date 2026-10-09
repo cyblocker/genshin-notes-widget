@@ -65,4 +65,21 @@
     <string name="login_region_label">Region:</string>
     <string name="login_region_global">Global (HoYoLAB)</string>
     <string name="login_region_cn">China (Miyoushe)</string>
+
+    <!-- Appearance / Customization -->
+    <string name="appearance_title">Widget Appearance</string>
+    <string name="bg_mode_color">Solid &amp; Transparency</string>
+    <string name="bg_mode_image">Custom Wallpaper</string>
+    <string name="bg_color_presets">Color Preset</string>
+    <string name="bg_opacity_label">Background Opacity: %d%%</string>
+    <string name="bg_dimming_label">Wallpaper Dimming Scrim: %d%%</string>
+    <string name="btn_choose_image">Select Image from Gallery</string>
+    <string name="btn_remove_image">Remove Background Image</string>
+    <string name="color_preset_slate">Slate</string>
+    <string name="color_preset_black">OLED Black</string>
+    <string name="color_preset_navy">Abyss Navy</string>
+    <string name="color_preset_teal">Anemo Teal</string>
+    <string name="color_preset_amber">Geo Amber</string>
+    <string name="color_preset_purple">Electro Purple</string>
+    <string name="color_preset_crimson">Pyro Crimson</string>
 </resources>

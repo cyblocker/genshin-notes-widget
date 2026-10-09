@@ -65,4 +65,21 @@
     <string name="login_region_label">区服:</string>
     <string name="login_region_global">国际服 (HoYoLAB)</string>
     <string name="login_region_cn">国服 (米游社)</string>
+
+    <!-- Appearance / Customization -->
+    <string name="appearance_title">桌面组件外观定制</string>
+    <string name="bg_mode_color">纯色与透明度</string>
+    <string name="bg_mode_image">自定义背景壁纸</string>
+    <string name="bg_color_presets">预设配色</string>
+    <string name="bg_opacity_label">背景不透明度: %d%%</string>
+    <string name="bg_dimming_label">壁纸暗度遮罩: %d%%</string>
+    <string name="btn_choose_image">从相册选择图片</string>
+    <string name="btn_remove_image">清除背景图</string>
+    <string name="color_preset_slate">深空灰</string>
+    <string name="color_preset_black">纯黑</string>
+    <string name="color_preset_navy">深海蓝</string>
+    <string name="color_preset_teal">风神青</string>
+    <string name="color_preset_amber">岩金褐</string>
+    <string name="color_preset_purple">雷电紫</string>
+    <string name="color_preset_crimson">火元素红</string>
 </resources>

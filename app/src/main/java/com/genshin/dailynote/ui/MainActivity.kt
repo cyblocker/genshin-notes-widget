@@ -94,6 +94,27 @@ import com.genshin.dailynote.ui.theme.SecondaryGold
 import com.genshin.dailynote.ui.theme.TextMuted
 import com.genshin.dailynote.ui.theme.TextPrimary
 import com.genshin.dailynote.ui.theme.TextSecondary
+import android.graphics.Bitmap
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.genshin.dailynote.data.repository.WidgetAppearance
+import com.genshin.dailynote.util.ImageUtils
 
 class MainActivity : ComponentActivity() {
 
@@ -106,6 +127,23 @@ class MainActivity : ComponentActivity() {
             GenshinDailyNotesTheme {
                 val uiState by viewModel.uiState.collectAsState()
                 val context = LocalContext.current
+                val appearance by viewModel.widgetAppearance.collectAsState()
+                val hasCustomBgImage by viewModel.hasCustomBgImage.collectAsState()
+
+                var customBgBitmap by remember { mutableStateOf<Bitmap?>(null) }
+                LaunchedEffect(appearance, hasCustomBgImage) {
+                    customBgBitmap = if (appearance.bgType == "IMAGE") {
+                        ImageUtils.loadWidgetBackgroundBitmap(context)
+                    } else null
+                }
+
+                val photoPickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.PickVisualMedia()
+                ) { uri ->
+                    if (uri != null) {
+                        viewModel.saveCustomBgImage(uri)
+                    }
+                }
 
                 val loginLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.StartActivityForResult()
@@ -169,6 +207,19 @@ class MainActivity : ComponentActivity() {
                             }
                         )
 
+                        // Widget Appearance Customization Card
+                        WidgetAppearanceCard(
+                            appearance = appearance,
+                            hasCustomImage = hasCustomBgImage,
+                            onAppearanceChange = viewModel::updateAppearance,
+                            onPickImage = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            onRemoveImage = viewModel::removeCustomBgImage
+                        )
+
                         // Status / Notification Banner
                         uiState.statusMessage?.let { msg ->
                             StatusBanner(
@@ -178,7 +229,11 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // Live Widget Preview
-                        WidgetPreviewCard(uiState = uiState)
+                        WidgetPreviewCard(
+                            uiState = uiState,
+                            appearance = appearance,
+                            customBgBitmap = customBgBitmap
+                        )
 
                         Spacer(modifier = Modifier.height(24.dp))
                     }
@@ -442,8 +497,255 @@ private fun StatusBanner(message: String, isError: Boolean) {
     }
 }
 
+private data class ColorPreset(val nameRes: Int, val hex: String)
+
+private val COLOR_PRESETS = listOf(
+    ColorPreset(R.string.color_preset_slate, "#13161F"),
+    ColorPreset(R.string.color_preset_black, "#000000"),
+    ColorPreset(R.string.color_preset_navy, "#0F172A"),
+    ColorPreset(R.string.color_preset_teal, "#132E2E"),
+    ColorPreset(R.string.color_preset_amber, "#2E2213"),
+    ColorPreset(R.string.color_preset_purple, "#231533"),
+    ColorPreset(R.string.color_preset_crimson, "#2D1214")
+)
+
 @Composable
-private fun WidgetPreviewCard(uiState: MainUiState) {
+private fun WidgetAppearanceCard(
+    appearance: WidgetAppearance,
+    hasCustomImage: Boolean,
+    onAppearanceChange: (WidgetAppearance) -> Unit,
+    onPickImage: () -> Unit,
+    onRemoveImage: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardDark),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = PrimaryCyan,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.appearance_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Mode Selector
+            val selectedTabIndex = if (appearance.bgType == "IMAGE") 1 else 0
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = CardDarkElevated,
+                contentColor = PrimaryCyan,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)),
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                        color = PrimaryCyan
+                    )
+                }
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { onAppearanceChange(appearance.copy(bgType = "COLOR")) },
+                    text = {
+                        Text(
+                            stringResource(R.string.bg_mode_color),
+                            color = if (selectedTabIndex == 0) PrimaryCyan else TextSecondary,
+                            fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 13.sp
+                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = {
+                        if (hasCustomImage) {
+                            onAppearanceChange(appearance.copy(bgType = "IMAGE"))
+                        } else {
+                            onPickImage()
+                        }
+                    },
+                    text = {
+                        Text(
+                            stringResource(R.string.bg_mode_image),
+                            color = if (selectedTabIndex == 1) PrimaryCyan else TextSecondary,
+                            fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 13.sp
+                        )
+                    }
+                )
+            }
+
+            if (selectedTabIndex == 0) {
+                // Color Presets
+                Text(
+                    text = stringResource(R.string.bg_color_presets),
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(COLOR_PRESETS) { preset ->
+                        val isSelected = appearance.colorHex.equals(preset.hex, ignoreCase = true)
+                        val chipColor = try {
+                            Color(android.graphics.Color.parseColor(preset.hex))
+                        } catch (e: Exception) {
+                            Color(0xFF13161F)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CardDarkElevated else Color.Transparent)
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) PrimaryCyan else BorderDark,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    onAppearanceChange(appearance.copy(colorHex = preset.hex, bgType = "COLOR"))
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(chipColor)
+                                        .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(preset.nameRes),
+                                    color = if (isSelected) TextPrimary else TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Opacity Slider
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.bg_opacity_label, (appearance.alpha * 100).toInt()),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = if (appearance.alpha == 0f) "Glass (0%)" else if (appearance.alpha == 1f) "Solid (100%)" else "${(appearance.alpha * 100).toInt()}%",
+                            color = PrimaryCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Slider(
+                        value = appearance.alpha,
+                        onValueChange = { onAppearanceChange(appearance.copy(alpha = it)) },
+                        valueRange = 0f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = PrimaryCyan,
+                            activeTrackColor = PrimaryCyan,
+                            inactiveTrackColor = BorderDark
+                        )
+                    )
+                }
+            } else {
+                // Custom Image Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onPickImage,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryCyan, contentColor = BgDark)
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.btn_choose_image),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    if (hasCustomImage) {
+                        OutlinedButton(
+                            onClick = onRemoveImage,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF87171)),
+                            border = BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = 0.5f))
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(R.string.btn_remove_image), fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                // Dimming Slider
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.bg_dimming_label, (appearance.dimming * 100).toInt()),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "${(appearance.dimming * 100).toInt()}%",
+                            color = PrimaryCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Slider(
+                        value = appearance.dimming,
+                        onValueChange = { onAppearanceChange(appearance.copy(dimming = it)) },
+                        valueRange = 0f..0.85f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = PrimaryCyan,
+                            activeTrackColor = PrimaryCyan,
+                            inactiveTrackColor = BorderDark
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetPreviewCard(
+    uiState: MainUiState,
+    appearance: WidgetAppearance,
+    customBgBitmap: Bitmap?
+) {
     val note = uiState.extrapolatedNote
     val context = LocalContext.current
 
@@ -492,21 +794,53 @@ private fun WidgetPreviewCard(uiState: MainUiState) {
                 val resinRecovery = ExtrapolationUtils.getLocalizedResinRecovery(context, note)
                 val syncTime = ExtrapolationUtils.formatSyncTime(context, note.lastSyncTimestamp)
 
+                val parsedColor = try {
+                    Color(android.graphics.Color.parseColor(appearance.colorHex))
+                } catch (e: Exception) {
+                    Color(0xFF13161F)
+                }
+
                 // Render Widget Visual Simulation (Matches the refined 4x2 layout)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF13161F))
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Background layer (custom image or color)
+                    if (appearance.bgType == "IMAGE" && customBgBitmap != null) {
+                        Image(
+                            bitmap = customBgBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.matchParentSize()
+                        )
+                        if (appearance.dimming > 0.05f) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(Color.Black.copy(alpha = appearance.dimming))
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(parsedColor.copy(alpha = appearance.alpha))
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         // Header
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFF242A3D))
+                                    .background(Color(0xCC242A3D))
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
                                 Text("GENSHIN", color = PrimaryCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
@@ -524,7 +858,7 @@ private fun WidgetPreviewCard(uiState: MainUiState) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF1C202E))
+                                .background(Color(0xCC1C202E))
                                 .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Row(
@@ -613,7 +947,7 @@ private fun PreviewCompactBadge(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF1C202E))
+            .background(Color(0xCC1C202E))
             .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {

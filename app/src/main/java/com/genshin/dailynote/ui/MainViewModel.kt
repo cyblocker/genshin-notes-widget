@@ -15,6 +15,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import android.net.Uri
+import androidx.glance.appwidget.updateAll
+import com.genshin.dailynote.data.repository.WidgetAppearance
+import com.genshin.dailynote.util.ImageUtils
+import com.genshin.dailynote.widget.GenshinGlanceWidget
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+
 data class MainUiState(
     val uid: String = "",
     val server: String = "os_asia",
@@ -36,6 +44,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    val widgetAppearance: StateFlow<WidgetAppearance> = preferences.widgetAppearanceFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = WidgetAppearance()
+        )
+
+    private val _hasCustomBgImage = MutableStateFlow(ImageUtils.hasBackgroundImage(application))
+    val hasCustomBgImage: StateFlow<Boolean> = _hasCustomBgImage.asStateFlow()
 
     init {
         loadConfigAndCache()
@@ -132,6 +150,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     extrapolatedNote = note
                 )
             }
+        }
+    }
+
+    fun updateAppearance(newAppearance: WidgetAppearance) {
+        viewModelScope.launch {
+            preferences.saveWidgetAppearance(newAppearance)
+            GenshinGlanceWidget().updateAll(getApplication())
+        }
+    }
+
+    fun saveCustomBgImage(uri: Uri) {
+        viewModelScope.launch {
+            val success = ImageUtils.saveWidgetBackgroundImage(getApplication(), uri)
+            if (success) {
+                _hasCustomBgImage.value = true
+                val current = preferences.getWidgetAppearance()
+                val updated = current.copy(bgType = "IMAGE")
+                preferences.saveWidgetAppearance(updated)
+                GenshinGlanceWidget().updateAll(getApplication())
+            }
+        }
+    }
+
+    fun removeCustomBgImage() {
+        viewModelScope.launch {
+            ImageUtils.deleteBackgroundImage(getApplication())
+            _hasCustomBgImage.value = false
+            val current = preferences.getWidgetAppearance()
+            val updated = current.copy(bgType = "COLOR")
+            preferences.saveWidgetAppearance(updated)
+            GenshinGlanceWidget().updateAll(getApplication())
         }
     }
 }
