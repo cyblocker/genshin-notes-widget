@@ -49,21 +49,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Update Latest Release (on main push)
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: Latest Build (Auto-Release)
-          body: |
-            Automated latest release built from commit ${{ github.sha }}.
-            
-            Download the APK below and install with `adb install -r --user 0` or standard sideloading.
-          files: artifacts/genshin-notes-widget-release.apk
-          prerelease: true
-          make_latest: true
-
-      - name: Create Versioned Release (on tag push)
+      - name: Create Versioned Release (only on explicit tag push)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
