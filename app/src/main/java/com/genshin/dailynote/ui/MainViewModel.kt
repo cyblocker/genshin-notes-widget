@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.glance.appwidget.updateAll
 import com.genshin.dailynote.data.repository.WidgetAppearance
@@ -61,6 +62,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _hasCustomBgImage = MutableStateFlow(ImageUtils.hasBackgroundImage(application))
     val hasCustomBgImage: StateFlow<Boolean> = _hasCustomBgImage.asStateFlow()
+
+    private val _bgImageVersion = MutableStateFlow(0)
+    val bgImageVersion: StateFlow<Int> = _bgImageVersion.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -197,6 +201,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveCroppedBackground(context: Context, croppedBitmap: Bitmap) {
+        viewModelScope.launch {
+            val success = ImageUtils.saveCroppedBitmap(getApplication(), croppedBitmap)
+            if (success) {
+                _hasCustomBgImage.value = true
+                val updated = _appearance.value.copy(bgType = "IMAGE")
+                _appearance.value = updated
+                preferences.saveWidgetAppearance(updated)
+                _bgImageVersion.value++
+                GenshinGlanceWidget().updateAll(getApplication())
+                android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_image_load_failed, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun saveCustomBgImage(uri: Uri, context: Context) {
         viewModelScope.launch {
             val success = ImageUtils.saveWidgetBackgroundImage(getApplication(), uri)
@@ -205,8 +226,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val updated = _appearance.value.copy(bgType = "IMAGE")
                 _appearance.value = updated
                 preferences.saveWidgetAppearance(updated)
+                _bgImageVersion.value++
                 GenshinGlanceWidget().updateAll(getApplication())
                 android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_image_load_failed, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -218,6 +242,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val updated = _appearance.value.copy(bgType = "COLOR")
             _appearance.value = updated
             preferences.saveWidgetAppearance(updated)
+            _bgImageVersion.value++
             GenshinGlanceWidget().updateAll(getApplication())
             android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
         }

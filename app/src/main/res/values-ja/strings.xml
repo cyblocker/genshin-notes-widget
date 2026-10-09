@@ -90,4 +90,15 @@
     <string name="toast_appearance_applied">ウィジェットの外観を更新しました！</string>
     <string name="bg_opacity_glass">完全透明 (0%%)</string>
     <string name="bg_opacity_solid">不透明 (100%%)</string>
+
+    <!-- Image Cropping -->
+    <string name="crop_title">背景画像の切り抜き</string>
+    <string name="crop_aspect_widget">2:1 (ウィジェット推奨)</string>
+    <string name="crop_aspect_wide">16:9</string>
+    <string name="crop_aspect_square">1:1</string>
+    <string name="crop_btn_rotate">回転</string>
+    <string name="crop_btn_apply">切り抜いて適用</string>
+    <string name="crop_btn_cancel">キャンセル</string>
+    <string name="crop_hint">ドラッグとピンチで位置を調整</string>
+    <string name="toast_image_load_failed">画像の処理に失敗しました</string>
 </resources>

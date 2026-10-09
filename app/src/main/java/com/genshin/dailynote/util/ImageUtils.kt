@@ -25,64 +25,103 @@ object ImageUtils {
         return file.exists() && file.length() > 0
     }
 
-    fun saveWidgetBackgroundImage(context: Context, uri: Uri): Boolean {
+    fun loadSourceBitmapForCropping(context: Context, uri: Uri): Bitmap? {
         return try {
-            // 1. Measure dimensions without full memory allocation
-            val options = BitmapFactory.Options().apply {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                stream.readBytes()
+            } ?: return null
+
+            if (bytes.isEmpty()) return null
+
+            val boundsOptions = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
-            } ?: return false
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+            val origWidth = boundsOptions.outWidth
+            val origHeight = boundsOptions.outHeight
+            if (origWidth <= 0 || origHeight <= 0) return null
 
-            val origWidth = options.outWidth
-            val origHeight = options.outHeight
-            if (origWidth <= 0 || origHeight <= 0) return false
-
-            // 2. Compute inSampleSize power of 2
+            // Downsample if huge (> 1600px) to prevent OOM
             var sampleSize = 1
-            while ((origWidth / sampleSize) > (MAX_DIMENSION * 1.5) || (origHeight / sampleSize) > (MAX_DIMENSION * 1.5)) {
+            val maxEditDim = 1600
+            while ((origWidth / sampleSize) > (maxEditDim * 1.5) || (origHeight / sampleSize) > (maxEditDim * 1.5)) {
                 sampleSize *= 2
             }
 
-            // 3. Decode sampled bitmap in RGB_565 (2 bytes per pixel)
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.RGB_565
+                inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-            val sampledBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, decodeOptions)
-            } ?: return false
+            var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions) ?: return null
 
-            // 4. Exact scale if still exceeding MAX_DIMENSION
-            val maxSide = maxOf(sampledBitmap.width, sampledBitmap.height)
+            // Read EXIF orientation
+            try {
+                val exif = android.media.ExifInterface(java.io.ByteArrayInputStream(bytes))
+                val orientation = exif.getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL
+                )
+                val rotationDegrees = when (orientation) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+
+                if (rotationDegrees != 0f) {
+                    val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees) }
+                    val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    if (rotated != bitmap) {
+                        bitmap.recycle()
+                        bitmap = rotated
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            bitmap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun saveCroppedBitmap(context: Context, croppedBitmap: Bitmap): Boolean {
+        return try {
+            val maxSide = maxOf(croppedBitmap.width, croppedBitmap.height)
             val finalBitmap = if (maxSide > MAX_DIMENSION) {
                 val scale = MAX_DIMENSION.toFloat() / maxSide
                 val scaled = Bitmap.createScaledBitmap(
-                    sampledBitmap,
-                    (sampledBitmap.width * scale).toInt().coerceAtLeast(1),
-                    (sampledBitmap.height * scale).toInt().coerceAtLeast(1),
+                    croppedBitmap,
+                    (croppedBitmap.width * scale).toInt().coerceAtLeast(1),
+                    (croppedBitmap.height * scale).toInt().coerceAtLeast(1),
                     true
                 )
-                if (scaled != sampledBitmap) {
-                    sampledBitmap.recycle()
-                }
                 scaled
             } else {
-                sampledBitmap
+                croppedBitmap
             }
 
-            // 5. Compress into private app internal storage
             val destFile = getBackgroundImageFile(context)
             FileOutputStream(destFile).use { out ->
                 finalBitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
             }
-            finalBitmap.recycle()
+            if (finalBitmap != croppedBitmap) {
+                finalBitmap.recycle()
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
             false
         }
+    }
+
+    fun saveWidgetBackgroundImage(context: Context, uri: Uri): Boolean {
+        val bitmap = loadSourceBitmapForCropping(context, uri) ?: return false
+        val result = saveCroppedBitmap(context, bitmap)
+        bitmap.recycle()
+        return result
     }
 
     fun loadWidgetBackgroundBitmap(context: Context, dimming: Float = 0f): Bitmap? {

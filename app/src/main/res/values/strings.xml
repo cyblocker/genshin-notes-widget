@@ -90,4 +90,15 @@
     <string name="toast_appearance_applied">Widget appearance updated!</string>
     <string name="bg_opacity_glass">Glass (0%%)</string>
     <string name="bg_opacity_solid">Solid (100%%)</string>
+
+    <!-- Image Cropping -->
+    <string name="crop_title">Crop Background Image</string>
+    <string name="crop_aspect_widget">2:1 (Widget)</string>
+    <string name="crop_aspect_wide">16:9</string>
+    <string name="crop_aspect_square">1:1</string>
+    <string name="crop_btn_rotate">Rotate</string>
+    <string name="crop_btn_apply">Apply Crop</string>
+    <string name="crop_btn_cancel">Cancel</string>
+    <string name="crop_hint">Drag and pinch to position</string>
+    <string name="toast_image_load_failed">Failed to process selected image</string>
 </resources>

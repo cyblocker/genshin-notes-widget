@@ -66,7 +66,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -130,9 +134,13 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 val appearance by viewModel.widgetAppearance.collectAsState()
                 val hasCustomBgImage by viewModel.hasCustomBgImage.collectAsState()
+                val bgImageVersion by viewModel.bgImageVersion.collectAsState()
+                val coroutineScope = rememberCoroutineScope()
 
+                var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
                 var customBgBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                LaunchedEffect(appearance, hasCustomBgImage) {
+
+                LaunchedEffect(appearance.bgType, hasCustomBgImage, bgImageVersion) {
                     customBgBitmap = if (appearance.bgType == "IMAGE") {
                         ImageUtils.loadWidgetBackgroundBitmap(context)
                     } else null
@@ -142,7 +150,16 @@ class MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.PickVisualMedia()
                 ) { uri ->
                     if (uri != null) {
-                        viewModel.saveCustomBgImage(uri, context)
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val bitmap = ImageUtils.loadSourceBitmapForCropping(context, uri)
+                            withContext(Dispatchers.Main) {
+                                if (bitmap != null) {
+                                    bitmapToCrop = bitmap
+                                } else {
+                                    Toast.makeText(context, R.string.toast_image_load_failed, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -239,6 +256,17 @@ class MainActivity : ComponentActivity() {
 
                         Spacer(modifier = Modifier.height(24.dp))
                     }
+                }
+
+                bitmapToCrop?.let { bmp ->
+                    ImageCropDialog(
+                        initialBitmap = bmp,
+                        onDismiss = { bitmapToCrop = null },
+                        onCropConfirmed = { cropped ->
+                            bitmapToCrop = null
+                            viewModel.saveCroppedBackground(context, cropped)
+                        }
+                    )
                 }
             }
         }
