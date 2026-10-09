@@ -1,0 +1,68 @@
+<resources>
+    <string name="app_name">Genshin Notes</string>
+    <string name="widget_name">Genshin Real-Time Notes</string>
+    <string name="widget_description">Glance desktop widget displaying live Resin, Commissions, Boss discounts, Expeditions, and Parametric Transformer status.</string>
+    <string name="widget_initial_loading">Loading Genshin Notes…</string>
+
+    <!-- Widget Content -->
+    <string name="widget_not_configured">Genshin Daily Notes</string>
+    <string name="widget_tap_to_config">Tap here to configure UID &amp; Cookie</string>
+    <string name="resin_title">Original Resin</string>
+    <string name="resin_full">Fully replenished</string>
+    <string name="resin_full_in">Full in %s</string>
+    <string name="commissions_title">Commissions</string>
+    <string name="commissions_claimed">Claimed ★</string>
+    <string name="commissions_claim_bonus">Claim Bonus!</string>
+    <string name="commissions_pending">In progress</string>
+    <string name="expeditions_title">Expeditions</string>
+    <string name="expeditions_all_done">All Done</string>
+    <string name="expeditions_next_in">Next: %s</string>
+    <string name="realm_coin_title">Realm Coin</string>
+    <string name="boss_discount_title">Boss Discount</string>
+    <string name="boss_discount_sub">Remaining</string>
+    <string name="transformer_title">Transformer</string>
+    <string name="transformer_ready">Ready</string>
+    <string name="transformer_cooldown">Cooldown</string>
+    <string name="transformer_not_obtained">Not obtained</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Just now</string>
+    <string name="time_minutes_ago">%dm ago</string>
+    <string name="time_hours_ago">%dh ago</string>
+    <string name="time_days_ago">%dd ago</string>
+
+    <!-- Configuration UI -->
+    <string name="title_config_sync">AppWidget Configuration &amp; Sync</string>
+    <string name="credentials_title">Credentials &amp; Server</string>
+    <string name="auto_login_button">⚡ Auto-Login &amp; Fetch Account</string>
+    <string name="or_manual_input">OR MANUAL INPUT</string>
+    <string name="label_uid">Genshin UID</string>
+    <string name="placeholder_uid">e.g. 800000001</string>
+    <string name="label_server">Server</string>
+    <string name="label_cookie">HoYoLAB / Miyoushe Cookie</string>
+    <string name="btn_test_api">Test API</string>
+    <string name="btn_save_sync">Save &amp; Sync</string>
+    <string name="preview_title">Widget Preview</string>
+    <string name="preview_extrapolate_active">Local Extrapolation Active</string>
+    <string name="preview_no_data">No Data</string>
+    <string name="preview_empty_hint">Save credentials or run Test API to preview widget.</string>
+    <string name="toast_cookie_pasted">Cookie pasted from clipboard</string>
+    <string name="msg_fill_required">Please enter both UID and Cookie before testing.</string>
+    <string name="msg_connecting">Connecting to HoYoverse API…</string>
+    <string name="msg_success_verified">Connection successful! Data verified.</string>
+    <string name="msg_save_success">Configuration saved! Background sync enqueued and widget updated.</string>
+
+    <!-- Cookie Guide Dialog -->
+    <string name="btn_cookie_guide">How to get Cookie manually?</string>
+    <string name="cookie_guide_title">How to Get Cookie Manually</string>
+    <string name="cookie_guide_content">1. Open hoyolab.com (or miyoushe.com) in your desktop browser and log in.\n\n2. Press F12 (Developer Tools) -> Application -> Storage -> Cookies.\n\n3. Copy the values of \'ltuid_v2\' (or \'ltuid\') and \'ltoken_v2\' (or \'ltoken\').\n\n4. Format: ltuid_v2=XXXX; ltoken_v2=YYYY;\n\n5. In HoYoLAB / Miyoushe Privacy Settings, make sure \'Real-Time Notes\' is enabled as Public for your account.</string>
+    <string name="dialog_close">Got it</string>
+
+    <!-- Login Activity -->
+    <string name="login_title">Automatic Login</string>
+    <string name="login_subtitle_waiting">Please log in to HoYoverse…</string>
+    <string name="login_cookie_detected">Cookie detected! Fetching characters…</string>
+    <string name="login_region_label">Region:</string>
+    <string name="login_region_global">Global (HoYoLAB)</string>
+    <string name="login_region_cn">China (Miyoushe)</string>
+</resources>

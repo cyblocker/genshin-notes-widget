@@ -1,0 +1,68 @@
+<resources>
+    <string name="app_name">原神ノート</string>
+    <string name="widget_name">原神リアルタイムノート</string>
+    <string name="widget_description">天然樹脂、デイリー依頼、征討領域半額、探索派遣、参量物質変化器の状況をリアルタイムで表示するデスクトップウィジェット。</string>
+    <string name="widget_initial_loading">原神ノートを読み込み中…</string>
+
+    <!-- Widget Content -->
+    <string name="widget_not_configured">原神リアルタイムノート</string>
+    <string name="widget_tap_to_config">タップしてUIDとCookieを設定</string>
+    <string name="resin_title">天然樹脂</string>
+    <string name="resin_full">全回復済み</string>
+    <string name="resin_full_in">%s後に全回復</string>
+    <string name="commissions_title">デイリー依頼</string>
+    <string name="commissions_claimed">受取済 ★</string>
+    <string name="commissions_claim_bonus">報酬受取可!</string>
+    <string name="commissions_pending">進行中</string>
+    <string name="expeditions_title">探索派遣</string>
+    <string name="expeditions_all_done">全て完了</string>
+    <string name="expeditions_next_in">次回: %s</string>
+    <string name="realm_coin_title">洞天宝銭</string>
+    <string name="boss_discount_title">征討半額</string>
+    <string name="boss_discount_sub">残り回数</string>
+    <string name="transformer_title">物質変化器</string>
+    <string name="transformer_ready">使用可能</string>
+    <string name="transformer_cooldown">冷却中</string>
+    <string name="transformer_not_obtained">未所持</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">たった今</string>
+    <string name="time_minutes_ago">%d分前</string>
+    <string name="time_hours_ago">%d時間前</string>
+    <string name="time_days_ago">%d日前</string>
+
+    <!-- Configuration UI -->
+    <string name="title_config_sync">ウィジェット設定と同期</string>
+    <string name="credentials_title">アカウントとサーバー</string>
+    <string name="auto_login_button">⚡ Web自動ログインしてアカウント取得</string>
+    <string name="or_manual_input">または手動入力</string>
+    <string name="label_uid">原神 UID</string>
+    <string name="placeholder_uid">例: 800000001</string>
+    <string name="label_server">サーバー</string>
+    <string name="label_cookie">HoYoLAB / 米遊社 Cookie</string>
+    <string name="btn_test_api">接続テスト</string>
+    <string name="btn_save_sync">保存して同期</string>
+    <string name="preview_title">ウィジェットプレビュー</string>
+    <string name="preview_extrapolate_active">ローカル推算稼働中</string>
+    <string name="preview_no_data">データなし</string>
+    <string name="preview_empty_hint">認証情報を保存または接続テストを行ってプレビューを表示してください。</string>
+    <string name="toast_cookie_pasted">クリップボードからCookieを貼り付けました</string>
+    <string name="msg_fill_required">テスト前にUIDとCookieを入力してください。</string>
+    <string name="msg_connecting">HoYoverse APIに接続中…</string>
+    <string name="msg_success_verified">接続成功！データを確認しました。</string>
+    <string name="msg_save_success">設定を保存しました！バックグラウンド同期を登録し、ウィジェットを更新しました。</string>
+
+    <!-- Cookie Guide Dialog -->
+    <string name="btn_cookie_guide">手動でCookieを取得する方法</string>
+    <string name="cookie_guide_title">手動でCookieを取得する方法</string>
+    <string name="cookie_guide_content">1. PCブラウザで HoYoLAB (hoyolab.com) または 米遊社 (miyoushe.com) にアクセスしてログインします。\n\n2. F12（開発者ツール）を押し、Application -> Storage -> Cookies を開きます。\n\n3. \'ltuid_v2\'（または \'ltuid\'）と \'ltoken_v2\'（または \'ltoken\'）の値をコピーします。\n\n4. フォーマット例: ltuid_v2=XXXX; ltoken_v2=YYYY;\n\n5. HoYoLABの個人プライバシー設定で「リアルタイムノート」を【公開】に設定してください。</string>
+    <string name="dialog_close">閉じる</string>
+
+    <!-- Login Activity -->
+    <string name="login_title">自動ログイン</string>
+    <string name="login_subtitle_waiting">HoYoverseアカウントにログインしてください…</string>
+    <string name="login_cookie_detected">Cookieを検出しました！キャラクター情報を取得中…</string>
+    <string name="login_region_label">地域:</string>
+    <string name="login_region_global">グローバル (HoYoLAB)</string>
+    <string name="login_region_cn">中国本土 (米遊社)</string>
+</resources>
