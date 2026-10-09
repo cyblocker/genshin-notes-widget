@@ -82,4 +82,6 @@
     <string name="color_preset_amber">岩アンバー</string>
     <string name="color_preset_purple">雷パープル</string>
     <string name="color_preset_crimson">炎クリムゾン</string>
+    <string name="btn_apply_appearance">保存してウィジェットに適用</string>
+    <string name="toast_appearance_applied">ウィジェットの外観を更新しました！</string>
 </resources>

@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Person
@@ -141,7 +142,7 @@ class MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.PickVisualMedia()
                 ) { uri ->
                     if (uri != null) {
-                        viewModel.saveCustomBgImage(uri)
+                        viewModel.saveCustomBgImage(uri, context)
                     }
                 }
 
@@ -217,7 +218,8 @@ class MainActivity : ComponentActivity() {
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
-                            onRemoveImage = viewModel::removeCustomBgImage
+                            onRemoveImage = { viewModel.removeCustomBgImage(context) },
+                            onApply = { viewModel.applyAppearance(context) }
                         )
 
                         // Status / Notification Banner
@@ -515,7 +517,8 @@ private fun WidgetAppearanceCard(
     hasCustomImage: Boolean,
     onAppearanceChange: (WidgetAppearance) -> Unit,
     onPickImage: () -> Unit,
-    onRemoveImage: () -> Unit
+    onRemoveImage: () -> Unit,
+    onApply: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardDark),
@@ -735,6 +738,23 @@ private fun WidgetAppearanceCard(
                         )
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(
+                onClick = onApply,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryCyan, contentColor = BgDark),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.btn_apply_appearance),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
     }

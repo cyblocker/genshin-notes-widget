@@ -71,7 +71,7 @@ class GenshinGlanceWidget : GlanceAppWidget() {
         val note = app.preferencesRepository.getExtrapolatedNote()
         val appearance = app.preferencesRepository.getWidgetAppearance()
         val customBgBitmap = if (appearance.bgType == "IMAGE") {
-            ImageUtils.loadWidgetBackgroundBitmap(context)
+            ImageUtils.loadWidgetBackgroundBitmap(context, appearance.dimming)
         } else null
 
         provideContent {
@@ -117,39 +117,32 @@ private fun WidgetContainer(
         BgColor
     }
 
-    Box(
-        modifier = GlanceModifier
+    val isImageMode = appearance.bgType == "IMAGE" && customBgBitmap != null
+
+    val containerModifier = if (isImageMode) {
+        GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>())
-    ) {
-        // Layer 1: Background (Image or Color)
-        if (appearance.bgType == "IMAGE" && customBgBitmap != null) {
+    } else {
+        GlanceModifier
+            .fillMaxSize()
+            .cornerRadius(16.dp)
+            .background(ColorProvider(parsedColor.copy(alpha = appearance.alpha)))
+            .clickable(actionStartActivity<MainActivity>())
+    }
+
+    Box(modifier = containerModifier) {
+        if (isImageMode && customBgBitmap != null) {
             Image(
                 provider = ImageProvider(customBgBitmap),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = GlanceModifier.fillMaxSize()
             )
-            // Layer 2: Dimming Scrim
-            if (appearance.dimming > 0.05f) {
-                Box(
-                    modifier = GlanceModifier
-                        .fillMaxSize()
-                        .background(ColorProvider(Color.Black.copy(alpha = appearance.dimming)))
-                ) {}
-            }
-        } else {
-            // Solid or Translucent Color
-            val bgWithAlpha = parsedColor.copy(alpha = appearance.alpha)
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(bgWithAlpha))
-            ) {}
         }
 
-        // Layer 3: Widget Content
+        // Widget Content
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()

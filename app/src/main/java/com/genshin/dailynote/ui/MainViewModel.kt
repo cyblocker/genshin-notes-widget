@@ -1,6 +1,7 @@
 package com.genshin.dailynote.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.genshin.dailynote.GenshinApp
@@ -45,17 +46,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    val widgetAppearance: StateFlow<WidgetAppearance> = preferences.widgetAppearanceFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = WidgetAppearance()
-        )
+    private val _appearance = MutableStateFlow(WidgetAppearance())
+    val widgetAppearance: StateFlow<WidgetAppearance> = _appearance.asStateFlow()
 
     private val _hasCustomBgImage = MutableStateFlow(ImageUtils.hasBackgroundImage(application))
     val hasCustomBgImage: StateFlow<Boolean> = _hasCustomBgImage.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            _appearance.value = preferences.getWidgetAppearance()
+        }
         loadConfigAndCache()
     }
 
@@ -143,6 +143,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             // Also reload extrapolated note
             val note = preferences.getExtrapolatedNote()
+            // Ensure current appearance is also persisted and widget updated
+            preferences.saveWidgetAppearance(_appearance.value)
+            GenshinGlanceWidget().updateAll(getApplication())
+
             _uiState.update {
                 it.copy(
                     isSavingAndSyncing = false,
@@ -154,33 +158,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAppearance(newAppearance: WidgetAppearance) {
+        _appearance.value = newAppearance
+    }
+
+    fun applyAppearance(context: Context) {
         viewModelScope.launch {
-            preferences.saveWidgetAppearance(newAppearance)
+            val current = _appearance.value
+            preferences.saveWidgetAppearance(current)
             GenshinGlanceWidget().updateAll(getApplication())
+            android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun saveCustomBgImage(uri: Uri) {
+    fun saveCustomBgImage(uri: Uri, context: Context) {
         viewModelScope.launch {
             val success = ImageUtils.saveWidgetBackgroundImage(getApplication(), uri)
             if (success) {
                 _hasCustomBgImage.value = true
-                val current = preferences.getWidgetAppearance()
-                val updated = current.copy(bgType = "IMAGE")
+                val updated = _appearance.value.copy(bgType = "IMAGE")
+                _appearance.value = updated
                 preferences.saveWidgetAppearance(updated)
                 GenshinGlanceWidget().updateAll(getApplication())
+                android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun removeCustomBgImage() {
+    fun removeCustomBgImage(context: Context) {
         viewModelScope.launch {
             ImageUtils.deleteBackgroundImage(getApplication())
             _hasCustomBgImage.value = false
-            val current = preferences.getWidgetAppearance()
-            val updated = current.copy(bgType = "COLOR")
+            val updated = _appearance.value.copy(bgType = "COLOR")
+            _appearance.value = updated
             preferences.saveWidgetAppearance(updated)
             GenshinGlanceWidget().updateAll(getApplication())
+            android.widget.Toast.makeText(context, com.genshin.dailynote.R.string.toast_appearance_applied, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

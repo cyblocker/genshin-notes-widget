@@ -3,13 +3,18 @@ package com.genshin.dailynote.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
 
 object ImageUtils {
     private const val BG_IMAGE_FILENAME = "custom_widget_bg.jpg"
-    private const val MAX_DIMENSION = 1024
+    // Keep max dimension <= 480 to strictly guarantee total bitmap size in RAM is < 300 KB,
+    // avoiding Android RemoteViews TransactionTooLargeException (1 MB Binder limit).
+    private const val MAX_DIMENSION = 480
 
     fun getBackgroundImageFile(context: Context): File {
         return File(context.filesDir, BG_IMAGE_FILENAME)
@@ -40,23 +45,23 @@ object ImageUtils {
                 sampleSize *= 2
             }
 
-            // 3. Decode sampled bitmap
+            // 3. Decode sampled bitmap in RGB_565 (2 bytes per pixel)
             val decodeOptions = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.ARGB_8888
+                inPreferredConfig = Bitmap.Config.RGB_565
             }
             val sampledBitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
             } ?: return false
 
-            // 4. Exact scale if still exceeding MAX_DIMENSION to preserve Binder limit
+            // 4. Exact scale if still exceeding MAX_DIMENSION
             val maxSide = maxOf(sampledBitmap.width, sampledBitmap.height)
             val finalBitmap = if (maxSide > MAX_DIMENSION) {
                 val scale = MAX_DIMENSION.toFloat() / maxSide
                 val scaled = Bitmap.createScaledBitmap(
                     sampledBitmap,
-                    (sampledBitmap.width * scale).toInt(),
-                    (sampledBitmap.height * scale).toInt(),
+                    (sampledBitmap.width * scale).toInt().coerceAtLeast(1),
+                    (sampledBitmap.height * scale).toInt().coerceAtLeast(1),
                     true
                 )
                 if (scaled != sampledBitmap) {
@@ -80,11 +85,34 @@ object ImageUtils {
         }
     }
 
-    fun loadWidgetBackgroundBitmap(context: Context): Bitmap? {
+    fun loadWidgetBackgroundBitmap(context: Context, dimming: Float = 0f): Bitmap? {
         val file = getBackgroundImageFile(context)
         if (!file.exists() || file.length() <= 0) return null
         return try {
-            BitmapFactory.decodeFile(file.absolutePath)
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.RGB_565
+                inMutable = true
+            }
+            val decoded = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
+            val workingBitmap = if (decoded.isMutable) {
+                decoded
+            } else {
+                val copy = decoded.copy(Bitmap.Config.RGB_565, true)
+                decoded.recycle()
+                copy ?: return null
+            }
+
+            // Pre-apply dimming directly onto bitmap to avoid extra Glance RemoteViews overlays
+            if (dimming > 0.05f) {
+                val canvas = Canvas(workingBitmap)
+                val paint = Paint().apply {
+                    color = Color.BLACK
+                    alpha = (dimming * 255).toInt().coerceIn(0, 255)
+                }
+                canvas.drawRect(0f, 0f, workingBitmap.width.toFloat(), workingBitmap.height.toFloat(), paint)
+            }
+
+            workingBitmap
         } catch (e: Exception) {
             e.printStackTrace()
             null

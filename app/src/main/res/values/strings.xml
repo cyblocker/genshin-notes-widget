@@ -82,4 +82,6 @@
     <string name="color_preset_amber">Geo Amber</string>
     <string name="color_preset_purple">Electro Purple</string>
     <string name="color_preset_crimson">Pyro Crimson</string>
+    <string name="btn_apply_appearance">Save &amp; Apply to Widget</string>
+    <string name="toast_appearance_applied">Widget appearance updated!</string>
 </resources>
