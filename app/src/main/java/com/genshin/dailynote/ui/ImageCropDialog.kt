@@ -71,11 +71,13 @@ import com.genshin.dailynote.ui.theme.PrimaryCyan
 import com.genshin.dailynote.ui.theme.TextPrimary
 import com.genshin.dailynote.ui.theme.TextSecondary
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 private enum class CropAspect(val ratio: Float, val labelRes: Int) {
     WIDGET_2_1(2.0f, R.string.crop_aspect_widget),
     WIDE_16_9(16f / 9f, R.string.crop_aspect_wide),
-    SQUARE_1_1(1.0f, R.string.crop_aspect_square)
+    SQUARE_1_1(1.0f, R.string.crop_aspect_square),
+    ORIGINAL(-1f, R.string.crop_aspect_original)
 }
 
 @Composable
@@ -88,6 +90,8 @@ fun ImageCropDialog(
     var selectedAspect by remember { mutableStateOf(CropAspect.WIDGET_2_1) }
     var userZoom by remember { mutableFloatStateOf(1.0f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
+    var displayedCropBoxWidthPx by remember { mutableFloatStateOf(1f) }
+    var displayedCropBoxHeightPx by remember { mutableFloatStateOf(1f) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -105,7 +109,7 @@ fun ImageCropDialog(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Header Row
                 Row(
@@ -142,6 +146,7 @@ fun ImageCropDialog(
                             selected = isSelected,
                             onClick = {
                                 selectedAspect = aspect
+                                userZoom = 1.0f
                                 panOffset = Offset.Zero
                             },
                             label = {
@@ -174,8 +179,16 @@ fun ImageCropDialog(
                     val containerWidthPx = with(density) { maxWidth.toPx() }
                     val containerHeightPx = with(density) { maxHeight.toPx() }
 
-                    // Compute crop box dimensions based on aspect ratio
-                    val targetAspect = selectedAspect.ratio
+                    val bmpWidth = workingBitmap.width.toFloat()
+                    val bmpHeight = workingBitmap.height.toFloat().coerceAtLeast(1f)
+
+                    // Compute crop box aspect ratio
+                    val targetAspect = if (selectedAspect == CropAspect.ORIGINAL) {
+                        bmpWidth / bmpHeight
+                    } else {
+                        selectedAspect.ratio
+                    }
+
                     val maxBoxWidth = containerWidthPx * 0.95f
                     val maxBoxHeight = containerHeightPx * 0.95f
 
@@ -185,24 +198,11 @@ fun ImageCropDialog(
                         (maxBoxHeight * targetAspect) to maxBoxHeight
                     }
 
+                    displayedCropBoxWidthPx = cropBoxWidthPx
+                    displayedCropBoxHeightPx = cropBoxHeightPx
+
                     val cropBoxWidthDp = with(density) { cropBoxWidthPx.toDp() }
                     val cropBoxHeightDp = with(density) { cropBoxHeightPx.toDp() }
-
-                    // Base scale so image covers the crop box
-                    val baseScale = max(
-                        cropBoxWidthPx / workingBitmap.width.toFloat(),
-                        cropBoxHeightPx / workingBitmap.height.toFloat()
-                    )
-                    val totalScale = baseScale * userZoom
-
-                    val displayedWidth = workingBitmap.width * totalScale
-                    val displayedHeight = workingBitmap.height * totalScale
-
-                    val maxPanX = max(0f, (displayedWidth - cropBoxWidthPx) / 2f)
-                    val maxPanY = max(0f, (displayedHeight - cropBoxHeightPx) / 2f)
-
-                    val clampedPanX = panOffset.x.coerceIn(-maxPanX, maxPanX)
-                    val clampedPanY = panOffset.y.coerceIn(-maxPanY, maxPanY)
 
                     // Crop box container
                     Box(
@@ -211,37 +211,60 @@ fun ImageCropDialog(
                             .clip(RoundedCornerShape(14.dp))
                             .border(2.dp, PrimaryCyan, RoundedCornerShape(14.dp))
                             .clipToBounds()
-                            .pointerInput(selectedAspect, workingBitmap, userZoom) {
+                            .pointerInput(workingBitmap, selectedAspect) {
                                 detectTransformGestures { _, pan, zoom, _ ->
                                     userZoom = (userZoom * zoom).coerceIn(1.0f, 3.5f)
                                     panOffset = Offset(
-                                        x = (panOffset.x + pan.x).coerceIn(-maxPanX, maxPanX),
-                                        y = (panOffset.y + pan.y).coerceIn(-maxPanY, maxPanY)
+                                        x = panOffset.x + pan.x,
+                                        y = panOffset.y + pan.y
                                     )
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            bitmap = workingBitmap.asImageBitmap(),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillBounds,
-                            modifier = Modifier
-                                .size(
-                                    width = with(density) { displayedWidth.toDp() },
-                                    height = with(density) { displayedHeight.toDp() }
-                                )
-                                .graphicsLayer {
-                                    translationX = clampedPanX
-                                    translationY = clampedPanY
-                                }
-                        )
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            val boxW = size.width
+                            val boxH = size.height
 
-                        // Visual gridlines inside crop frame
+                            val bWidth = workingBitmap.width.toFloat()
+                            val bHeight = workingBitmap.height.toFloat().coerceAtLeast(1f)
+
+                            // Base scale so image fills the larger needed dimension (never squished, uniform scale)
+                            val bScale = max(boxW / bWidth, boxH / bHeight)
+                            val tScale = bScale * userZoom
+
+                            val sW = bWidth * tScale
+                            val sH = bHeight * tScale
+
+                            val mPanX = max(0f, (sW - boxW) / 2f)
+                            val mPanY = max(0f, (sH - boxH) / 2f)
+
+                            val cPanX = panOffset.x.coerceIn(-mPanX, mPanX)
+                            val cPanY = panOffset.y.coerceIn(-mPanY, mPanY)
+
+                            val dstX = (boxW - sW) / 2f + cPanX
+                            val dstY = (boxH - sH) / 2f + cPanY
+
+                            drawImage(
+                                image = workingBitmap.asImageBitmap(),
+                                dstOffset = androidx.compose.ui.unit.IntOffset(
+                                    dstX.roundToInt(),
+                                    dstY.roundToInt()
+                                ),
+                                dstSize = androidx.compose.ui.unit.IntSize(
+                                    sW.roundToInt(),
+                                    sH.roundToInt()
+                                )
+                            )
+                        }
+
+                        // Subtle boundary guide
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
                         )
                     }
                 }
@@ -261,6 +284,7 @@ fun ImageCropDialog(
                             )
                             workingBitmap = rotated
                             panOffset = Offset.Zero
+                            userZoom = 1.0f
                         },
                         modifier = Modifier
                             .background(CardDarkElevated, CircleShape)
@@ -274,7 +298,7 @@ fun ImageCropDialog(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Icon(
                         Icons.Default.ZoomIn,
@@ -283,10 +307,17 @@ fun ImageCropDialog(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = java.lang.String.format(java.util.Locale.US, "%.1fx", userZoom),
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(36.dp)
+                    )
                     Slider(
                         value = userZoom,
                         onValueChange = { userZoom = it },
-                        valueRange = 1.0f..3.5f,
+                        valueRange = 1.0f..3.0f,
                         modifier = Modifier.weight(1f),
                         colors = SliderDefaults.colors(
                             thumbColor = PrimaryCyan,
@@ -306,7 +337,7 @@ fun ImageCropDialog(
                 // Bottom Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
@@ -314,58 +345,72 @@ fun ImageCropDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(stringResource(R.string.crop_btn_cancel))
+                        Text(stringResource(R.string.crop_btn_cancel), fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            onCropConfirmed(workingBitmap)
+                        },
+                        modifier = Modifier.weight(1.3f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCyan),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryCyan.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.crop_btn_use_original), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
                         onClick = {
-                            // Perform Crop Calculation in workingBitmap coordinate space
-                            val targetAspect = selectedAspect.ratio
+                            val boxW = displayedCropBoxWidthPx.coerceAtLeast(1f)
+                            val boxH = displayedCropBoxHeightPx.coerceAtLeast(1f)
 
-                            // Derive src rectangle
-                            val aspectW: Float
-                            val aspectH: Float
-                            if (workingBitmap.width.toFloat() / workingBitmap.height.toFloat() > targetAspect) {
-                                aspectH = workingBitmap.height.toFloat()
-                                aspectW = aspectH * targetAspect
-                            } else {
-                                aspectW = workingBitmap.width.toFloat()
-                                aspectH = aspectW / targetAspect
-                            }
+                            val bWidth = workingBitmap.width.toFloat()
+                            val bHeight = workingBitmap.height.toFloat().coerceAtLeast(1f)
 
-                            val cropW = (aspectW / userZoom).coerceIn(1f, workingBitmap.width.toFloat())
-                            val cropH = (aspectH / userZoom).coerceIn(1f, workingBitmap.height.toFloat())
+                            // Same uniform scale formula as the Canvas renderer
+                            val bScale = max(boxW / bWidth, boxH / bHeight)
+                            val tScale = bScale * userZoom
 
-                            // Account for normalized pan
-                            val maxShiftX = (workingBitmap.width - cropW) / 2f
-                            val maxShiftY = (workingBitmap.height - cropH) / 2f
+                            val sW = bWidth * tScale
+                            val sH = bHeight * tScale
 
-                            val shiftFracX = if (userZoom > 1f) (panOffset.x / 1000f).coerceIn(-1f, 1f) else 0f
-                            val shiftFracY = if (userZoom > 1f) (panOffset.y / 1000f).coerceIn(-1f, 1f) else 0f
+                            val mPanX = max(0f, (sW - boxW) / 2f)
+                            val mPanY = max(0f, (sH - boxH) / 2f)
 
-                            val centerX = workingBitmap.width / 2f - (shiftFracX * maxShiftX)
-                            val centerY = workingBitmap.height / 2f - (shiftFracY * maxShiftY)
+                            val cPanX = panOffset.x.coerceIn(-mPanX, mPanX)
+                            val cPanY = panOffset.y.coerceIn(-mPanY, mPanY)
 
-                            val srcLeft = (centerX - cropW / 2f).coerceIn(0f, workingBitmap.width - cropW).toInt()
-                            val srcTop = (centerY - cropH / 2f).coerceIn(0f, workingBitmap.height - cropH).toInt()
-                            val finalW = cropW.toInt().coerceAtMost(workingBitmap.width - srcLeft)
-                            val finalH = cropH.toInt().coerceAtMost(workingBitmap.height - srcTop)
+                            // Image top-left relative to crop box top-left
+                            val dstX = (boxW - sW) / 2f + cPanX
+                            val dstY = (boxH - sH) / 2f + cPanY
+
+                            // Map crop box viewport (0, 0, boxW, boxH) back into bitmap pixel space
+                            val cropLeft = ((-dstX) / tScale).coerceIn(0f, bWidth - 1f)
+                            val cropTop = ((-dstY) / tScale).coerceIn(0f, bHeight - 1f)
+                            val cropWidth = (boxW / tScale).coerceIn(1f, bWidth - cropLeft)
+                            val cropHeight = (boxH / tScale).coerceIn(1f, bHeight - cropTop)
+
+                            val left = cropLeft.toInt().coerceIn(0, workingBitmap.width - 1)
+                            val top = cropTop.toInt().coerceIn(0, workingBitmap.height - 1)
+                            val width = cropWidth.toInt().coerceIn(1, workingBitmap.width - left)
+                            val height = cropHeight.toInt().coerceIn(1, workingBitmap.height - top)
 
                             try {
-                                val cropped = Bitmap.createBitmap(workingBitmap, srcLeft, srcTop, finalW, finalH)
+                                val cropped = Bitmap.createBitmap(workingBitmap, left, top, width, height)
                                 onCropConfirmed(cropped)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 onCropConfirmed(workingBitmap)
                             }
                         },
-                        modifier = Modifier.weight(1.4f),
+                        modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryCyan, contentColor = BgDark),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.crop_btn_apply), fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.crop_btn_apply), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

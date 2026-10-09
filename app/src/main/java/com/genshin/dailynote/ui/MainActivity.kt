@@ -134,17 +134,10 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 val appearance by viewModel.widgetAppearance.collectAsState()
                 val hasCustomBgImage by viewModel.hasCustomBgImage.collectAsState()
-                val bgImageVersion by viewModel.bgImageVersion.collectAsState()
                 val coroutineScope = rememberCoroutineScope()
 
                 var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
-                var customBgBitmap by remember { mutableStateOf<Bitmap?>(null) }
-
-                LaunchedEffect(appearance.bgType, hasCustomBgImage, bgImageVersion) {
-                    customBgBitmap = if (appearance.bgType == "IMAGE") {
-                        ImageUtils.loadWidgetBackgroundBitmap(context)
-                    } else null
-                }
+                val customBgBitmap by viewModel.customBgBitmap.collectAsState()
 
                 val photoPickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.PickVisualMedia()
@@ -229,7 +222,7 @@ class MainActivity : ComponentActivity() {
                         WidgetAppearanceCard(
                             appearance = appearance,
                             hasCustomImage = hasCustomBgImage,
-                            onAppearanceChange = viewModel::updateAppearance,
+                            onAppearanceChange = { newApp, autoApply -> viewModel.updateAppearance(newApp, autoApply) },
                             onPickImage = {
                                 photoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -543,7 +536,7 @@ private val COLOR_PRESETS = listOf(
 private fun WidgetAppearanceCard(
     appearance: WidgetAppearance,
     hasCustomImage: Boolean,
-    onAppearanceChange: (WidgetAppearance) -> Unit,
+    onAppearanceChange: (WidgetAppearance, Boolean) -> Unit,
     onPickImage: () -> Unit,
     onRemoveImage: () -> Unit,
     onApply: () -> Unit
@@ -590,7 +583,7 @@ private fun WidgetAppearanceCard(
             ) {
                 Tab(
                     selected = selectedTabIndex == 0,
-                    onClick = { onAppearanceChange(appearance.copy(bgType = "COLOR")) },
+                    onClick = { onAppearanceChange(appearance.copy(bgType = "COLOR"), true) },
                     text = {
                         Text(
                             stringResource(R.string.bg_mode_color),
@@ -604,7 +597,7 @@ private fun WidgetAppearanceCard(
                     selected = selectedTabIndex == 1,
                     onClick = {
                         if (hasCustomImage) {
-                            onAppearanceChange(appearance.copy(bgType = "IMAGE"))
+                            onAppearanceChange(appearance.copy(bgType = "IMAGE"), true)
                         } else {
                             onPickImage()
                         }
@@ -651,7 +644,7 @@ private fun WidgetAppearanceCard(
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable {
-                                    onAppearanceChange(appearance.copy(colorHex = preset.hex, bgType = "COLOR"))
+                                    onAppearanceChange(appearance.copy(colorHex = preset.hex, bgType = "COLOR"), true)
                                 }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
@@ -699,9 +692,16 @@ private fun WidgetAppearanceCard(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                    var localAlpha by remember(appearance.alpha) { mutableStateOf(appearance.alpha) }
                     Slider(
                         value = appearance.alpha,
-                        onValueChange = { onAppearanceChange(appearance.copy(alpha = it)) },
+                        onValueChange = {
+                            localAlpha = it
+                            onAppearanceChange(appearance.copy(alpha = it), false)
+                        },
+                        onValueChangeFinished = {
+                            onAppearanceChange(appearance.copy(alpha = localAlpha), true)
+                        },
                         valueRange = 0f..1f,
                         colors = SliderDefaults.colors(
                             thumbColor = PrimaryCyan,
@@ -761,9 +761,16 @@ private fun WidgetAppearanceCard(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                    var localDimming by remember(appearance.dimming) { mutableStateOf(appearance.dimming) }
                     Slider(
                         value = appearance.dimming,
-                        onValueChange = { onAppearanceChange(appearance.copy(dimming = it)) },
+                        onValueChange = {
+                            localDimming = it
+                            onAppearanceChange(appearance.copy(dimming = it), false)
+                        },
+                        onValueChangeFinished = {
+                            onAppearanceChange(appearance.copy(dimming = localDimming), true)
+                        },
                         valueRange = 0f..0.85f,
                         colors = SliderDefaults.colors(
                             thumbColor = PrimaryCyan,
@@ -868,7 +875,7 @@ private fun WidgetPreviewCard(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.matchParentSize()
                         )
-                        if (appearance.dimming > 0.05f) {
+                        if (appearance.dimming > 0.01f) {
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
@@ -967,9 +974,9 @@ private fun WidgetPreviewCard(
                             )
                             PreviewCompactBadge(
                                 value = "${note.currentHomeCoin}",
-                                subtext = "/${note.maxHomeCoin}",
+                                subtext = ExtrapolationUtils.getLocalizedHomeCoinRecovery(context, note),
                                 modifier = Modifier.weight(1f),
-                                accentColor = SecondaryGold
+                                accentColor = if (note.currentHomeCoin >= note.maxHomeCoin) SecondaryGold else TextSecondary
                             )
                             PreviewCompactBadge(
                                 value = if (note.transformerReady) stringResource(R.string.transformer_ready) else ExtrapolationUtils.getLocalizedTransformerStatus(context, note),

@@ -13,9 +13,11 @@ import com.genshin.dailynote.data.local.ExtrapolationUtils
 import com.genshin.dailynote.data.model.DailyNoteData
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "genshin_notes_prefs")
@@ -92,9 +94,32 @@ class UserPreferencesRepository(
             )
         }
 
-    suspend fun getWidgetAppearance(): WidgetAppearance = widgetAppearanceFlow.first()
+    private val _appearanceStateFlow = kotlinx.coroutines.flow.MutableStateFlow(WidgetAppearance())
+    val appearanceStateFlow: kotlinx.coroutines.flow.StateFlow<WidgetAppearance> = _appearanceStateFlow.asStateFlow()
+
+    @Volatile
+    private var inMemoryAppearance: WidgetAppearance? = null
+
+    init {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            widgetAppearanceFlow.collect { app ->
+                _appearanceStateFlow.value = app
+                inMemoryAppearance = app
+            }
+        }
+    }
+
+    suspend fun getWidgetAppearance(): WidgetAppearance {
+        inMemoryAppearance?.let { return it }
+        val appearance = widgetAppearanceFlow.first()
+        inMemoryAppearance = appearance
+        _appearanceStateFlow.value = appearance
+        return appearance
+    }
 
     suspend fun saveWidgetAppearance(appearance: WidgetAppearance) {
+        inMemoryAppearance = appearance
+        _appearanceStateFlow.value = appearance
         context.dataStore.edit { prefs ->
             prefs[KEY_BG_TYPE] = appearance.bgType
             prefs[KEY_BG_COLOR_HEX] = appearance.colorHex

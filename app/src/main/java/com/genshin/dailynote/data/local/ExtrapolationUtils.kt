@@ -22,6 +22,7 @@ object ExtrapolationUtils {
         val bossDiscountLimit: Int,
         val currentHomeCoin: Int,
         val maxHomeCoin: Int,
+        val homeCoinRecoverySeconds: Long,
         val completedExpeditions: Int,
         val totalExpeditions: Int,
         val minExpeditionRemainingSeconds: Long?,
@@ -100,6 +101,25 @@ object ExtrapolationUtils {
             }
         }
 
+        // 4. Realm Currency (Home Coin) Extrapolation
+        val maxHomeCoin = cachedData.max_home_coin
+        val cachedHomeCoin = cachedData.current_home_coin
+        val cachedHomeCoinRecoverySec = cachedData.homeCoinRecoverySeconds
+
+        val remainingHomeCoinSec = if (cachedHomeCoin >= maxHomeCoin || cachedHomeCoinRecoverySec <= 0L) {
+            0L
+        } else {
+            max(0L, cachedHomeCoinRecoverySec - elapsedSeconds)
+        }
+
+        val currentHomeCoin = if (cachedHomeCoinRecoverySec > 0L && maxHomeCoin > cachedHomeCoin) {
+            val coinsToRecover = maxHomeCoin - cachedHomeCoin
+            val gainedCoins = ((elapsedSeconds.toDouble() / cachedHomeCoinRecoverySec.toDouble()) * coinsToRecover).toInt()
+            min(maxHomeCoin, cachedHomeCoin + gainedCoins)
+        } else {
+            cachedHomeCoin
+        }
+
         return ExtrapolatedNote(
             resin = currentResin,
             maxResin = maxResin,
@@ -109,8 +129,9 @@ object ExtrapolationUtils {
             isExtraTaskRewardReceived = cachedData.is_extra_task_reward_received,
             bossDiscountRemaining = cachedData.remain_resin_discount_num,
             bossDiscountLimit = cachedData.resin_discount_num_limit,
-            currentHomeCoin = cachedData.current_home_coin,
-            maxHomeCoin = cachedData.max_home_coin,
+            currentHomeCoin = currentHomeCoin,
+            maxHomeCoin = maxHomeCoin,
+            homeCoinRecoverySeconds = if (currentHomeCoin >= maxHomeCoin) 0L else remainingHomeCoinSec,
             completedExpeditions = completedExpeditions,
             totalExpeditions = totalExpeditions,
             minExpeditionRemainingSeconds = lowestRemainingOngoingSec,
@@ -119,6 +140,44 @@ object ExtrapolationUtils {
             transformerRemainingSeconds = transformerRemainingSec,
             lastSyncTimestamp = lastSyncTimestamp
         )
+    }
+
+    fun getLocalizedHomeCoinRecovery(context: Context, note: ExtrapolatedNote): String {
+        if (note.maxHomeCoin <= 0) return "--"
+        if (note.currentHomeCoin >= note.maxHomeCoin) {
+            return context.getString(R.string.realm_currency_full)
+        }
+        val effectiveSeconds = if (note.homeCoinRecoverySeconds > 0L) {
+            note.homeCoinRecoverySeconds
+        } else {
+            // Standard trust rank max generation rate is 30 coins/hr (120s per coin)
+            val remainingCoins = (note.maxHomeCoin - note.currentHomeCoin).coerceAtLeast(0)
+            remainingCoins * 120L
+        }
+        if (effectiveSeconds <= 0L) {
+            return context.getString(R.string.realm_currency_full)
+        }
+        val days = effectiveSeconds / 86400
+        val hours = (effectiveSeconds % 86400) / 3600
+        val minutes = (effectiveSeconds % 3600) / 60
+        val lang = Locale.getDefault().language
+        return when (lang) {
+            "zh" -> when {
+                days > 0 -> "${days}天${hours}时后满"
+                hours > 0 -> "${hours}小时${minutes}分后满"
+                else -> "${minutes}分后满"
+            }
+            "ja" -> when {
+                days > 0 -> "${days}日${hours}時間後"
+                hours > 0 -> "${hours}時間${minutes}分後"
+                else -> "${minutes}分後"
+            }
+            else -> when {
+                days > 0 -> "${days}d ${hours}h"
+                hours > 0 -> "${hours}h ${minutes}m"
+                else -> "${minutes}m"
+            }
+        }
     }
 
     fun getLocalizedResinRecovery(context: Context, note: ExtrapolatedNote): String {

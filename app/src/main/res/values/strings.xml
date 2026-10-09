@@ -18,6 +18,7 @@
     <string name="expeditions_all_done">All Done</string>
     <string name="expeditions_next_in">Next: %s</string>
     <string name="realm_coin_title">Realm Coin</string>
+    <string name="realm_currency_full">Full</string>
     <string name="boss_discount_title">Boss Discount</string>
     <string name="boss_discount_sub">Remaining</string>
     <string name="transformer_title">Transformer</string>
@@ -93,11 +94,13 @@
 
     <!-- Image Cropping -->
     <string name="crop_title">Crop Background Image</string>
+    <string name="crop_aspect_original">Original</string>
     <string name="crop_aspect_widget">2:1 (Widget)</string>
     <string name="crop_aspect_wide">16:9</string>
     <string name="crop_aspect_square">1:1</string>
     <string name="crop_btn_rotate">Rotate</string>
     <string name="crop_btn_apply">Apply Crop</string>
+    <string name="crop_btn_use_original">Use Original</string>
     <string name="crop_btn_cancel">Cancel</string>
     <string name="crop_hint">Drag and pinch to position</string>
     <string name="toast_image_load_failed">Failed to process selected image</string>

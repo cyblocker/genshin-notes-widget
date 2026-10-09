@@ -19,6 +19,7 @@ data class DailyNoteData(
     @SerializedName("resin_discount_num_limit") val resin_discount_num_limit: Int = 3,
     @SerializedName("current_home_coin") val current_home_coin: Int = 0,
     @SerializedName("max_home_coin") val max_home_coin: Int = 2400,
+    @SerializedName("home_coin_recovery_time") val home_coin_recovery_time: String = "0", // Seconds until full (String)
     @SerializedName("current_expedition_num") val current_expedition_num: Int = 0,
     @SerializedName("max_expedition_num") val max_expedition_num: Int = 5,
     @SerializedName("expeditions") val expeditions: List<ExpeditionItem> = emptyList(),
@@ -26,6 +27,9 @@ data class DailyNoteData(
 ) {
     val resinRecoverySeconds: Long
         get() = resin_recovery_time.toLongOrNull() ?: 0L
+
+    val homeCoinRecoverySeconds: Long
+        get() = home_coin_recovery_time.toLongOrNull() ?: 0L
 
     val completedExpeditionCount: Int
         get() = expeditions.count { it.status == "Finished" || (it.remained_time.toLongOrNull() ?: 0L) <= 0L }

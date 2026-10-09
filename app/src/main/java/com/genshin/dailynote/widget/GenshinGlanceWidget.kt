@@ -2,6 +2,10 @@ package com.genshin.dailynote.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -67,15 +71,28 @@ class GenshinGlanceWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val app = context.applicationContext as? GenshinApp ?: GenshinApp.instance
-        val config = app.preferencesRepository.getUserConfig()
-        val note = app.preferencesRepository.getExtrapolatedNote()
-        val appearance = app.preferencesRepository.getWidgetAppearance()
-        val customBgBitmap = if (appearance.bgType == "IMAGE") {
-            ImageUtils.loadWidgetBackgroundBitmap(context, appearance.dimming)
-        } else null
+        val initialConfig = app.preferencesRepository.getUserConfig()
+        val initialNote = app.preferencesRepository.getExtrapolatedNote()
+        val initialAppearance = app.preferencesRepository.getWidgetAppearance()
 
         provideContent {
             val size = LocalSize.current
+            val currentContext = LocalContext.current
+            val currentApp = currentContext.applicationContext as? GenshinApp ?: GenshinApp.instance
+
+            val appearance by currentApp.preferencesRepository.appearanceStateFlow.collectAsState(initial = initialAppearance)
+            val config by currentApp.preferencesRepository.userConfigFlow.collectAsState(initial = initialConfig)
+            val note by produceState(initialValue = initialNote) {
+                while (true) {
+                    value = currentApp.preferencesRepository.getExtrapolatedNote()
+                    delay(60_000)
+                }
+            }
+
+            val customBgBitmap = if (appearance.bgType == "IMAGE") {
+                ImageUtils.loadWidgetBackgroundBitmap(currentContext)
+            } else null
+
             WidgetContainer(
                 config = config,
                 note = note,
@@ -140,6 +157,13 @@ private fun WidgetContainer(
                 contentScale = ContentScale.Crop,
                 modifier = GlanceModifier.fillMaxSize()
             )
+            if (appearance.dimming > 0.01f) {
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .background(ColorProvider(Color.Black.copy(alpha = appearance.dimming)))
+                ) {}
+            }
         }
 
         // Widget Content
@@ -378,7 +402,7 @@ private fun Standard4x2DailyNoteView(
                 modifier = GlanceModifier.defaultWeight(),
                 iconRes = R.drawable.genshin_realm,
                 value = "${note.currentHomeCoin}",
-                subtext = context.getString(R.string.realm_coin_title),
+                subtext = ExtrapolationUtils.getLocalizedHomeCoinRecovery(context, note),
                 accentColor = if (note.currentHomeCoin >= note.maxHomeCoin) GoldAccent else TextSecondary
             )
 
@@ -552,7 +576,7 @@ private fun Narrow2x2DailyNoteView(
                 modifier = GlanceModifier.defaultWeight(),
                 iconRes = R.drawable.genshin_realm,
                 value = "${note.currentHomeCoin}",
-                subtext = context.getString(R.string.realm_coin_title),
+                subtext = ExtrapolationUtils.getLocalizedHomeCoinRecovery(context, note),
                 accentColor = if (note.currentHomeCoin >= note.maxHomeCoin) GoldAccent else TextSecondary
             )
         }
@@ -881,8 +905,8 @@ private fun TallDailyNoteView(
                 modifier = GlanceModifier.defaultWeight(),
                 iconRes = R.drawable.genshin_realm,
                 label = context.getString(R.string.realm_coin_title),
-                value = "${note.currentHomeCoin}",
-                subtext = "/${note.maxHomeCoin}",
+                value = "${note.currentHomeCoin}/${note.maxHomeCoin}",
+                subtext = ExtrapolationUtils.getLocalizedHomeCoinRecovery(context, note),
                 accentColor = if (note.currentHomeCoin >= note.maxHomeCoin) GoldAccent else TextSecondary
             )
 

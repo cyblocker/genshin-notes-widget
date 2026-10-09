@@ -18,6 +18,7 @@
     <string name="expeditions_all_done">全て完了</string>
     <string name="expeditions_next_in">次回: %s</string>
     <string name="realm_coin_title">洞天宝銭</string>
+    <string name="realm_currency_full">上限到達</string>
     <string name="boss_discount_title">征討半額</string>
     <string name="boss_discount_sub">残り回数</string>
     <string name="transformer_title">物質変化器</string>
@@ -93,11 +94,13 @@
 
     <!-- Image Cropping -->
     <string name="crop_title">背景画像の切り抜き</string>
-    <string name="crop_aspect_widget">2:1 (ウィジェット推奨)</string>
+    <string name="crop_aspect_original">元のアスペクト比</string>
+    <string name="crop_aspect_widget">2:1 (ウィジェット)</string>
     <string name="crop_aspect_wide">16:9</string>
     <string name="crop_aspect_square">1:1</string>
     <string name="crop_btn_rotate">回転</string>
     <string name="crop_btn_apply">切り抜いて適用</string>
+    <string name="crop_btn_use_original">元の画像を使用</string>
     <string name="crop_btn_cancel">キャンセル</string>
     <string name="crop_hint">ドラッグとピンチで位置を調整</string>
     <string name="toast_image_load_failed">画像の処理に失敗しました</string>

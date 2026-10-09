@@ -87,28 +87,49 @@ object ImageUtils {
         }
     }
 
+    @Volatile
+    private var cachedWidgetBgBitmap: Bitmap? = null
+
+    fun getCachedBitmap(): Bitmap? {
+        val bmp = cachedWidgetBgBitmap
+        if (bmp != null && !bmp.isRecycled) {
+            return bmp
+        }
+        return null
+    }
+
+    fun setCachedBitmap(bitmap: Bitmap?) {
+        cachedWidgetBgBitmap = bitmap
+    }
+
     fun saveCroppedBitmap(context: Context, croppedBitmap: Bitmap): Boolean {
         return try {
             val maxSide = maxOf(croppedBitmap.width, croppedBitmap.height)
-            val finalBitmap = if (maxSide > MAX_DIMENSION) {
+            val scaled = if (maxSide > MAX_DIMENSION) {
                 val scale = MAX_DIMENSION.toFloat() / maxSide
-                val scaled = Bitmap.createScaledBitmap(
+                Bitmap.createScaledBitmap(
                     croppedBitmap,
                     (croppedBitmap.width * scale).toInt().coerceAtLeast(1),
                     (croppedBitmap.height * scale).toInt().coerceAtLeast(1),
                     true
                 )
-                scaled
             } else {
                 croppedBitmap
             }
 
+            val finalBitmap = if (scaled.config != Bitmap.Config.RGB_565) {
+                val copy = scaled.copy(Bitmap.Config.RGB_565, false)
+                copy ?: scaled
+            } else {
+                scaled
+            }
+
+            // Immediately cache in memory for 0ms response time
+            cachedWidgetBgBitmap = finalBitmap
+
             val destFile = getBackgroundImageFile(context)
             FileOutputStream(destFile).use { out ->
                 finalBitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-            }
-            if (finalBitmap != croppedBitmap) {
-                finalBitmap.recycle()
             }
             true
         } catch (e: Exception) {
@@ -120,38 +141,27 @@ object ImageUtils {
     fun saveWidgetBackgroundImage(context: Context, uri: Uri): Boolean {
         val bitmap = loadSourceBitmapForCropping(context, uri) ?: return false
         val result = saveCroppedBitmap(context, bitmap)
-        bitmap.recycle()
         return result
     }
 
-    fun loadWidgetBackgroundBitmap(context: Context, dimming: Float = 0f): Bitmap? {
+    fun loadWidgetBackgroundBitmap(context: Context): Bitmap? {
+        val cached = cachedWidgetBgBitmap
+        if (cached != null && !cached.isRecycled) {
+            return cached
+        }
+
         val file = getBackgroundImageFile(context)
         if (!file.exists() || file.length() <= 0) return null
         return try {
             val options = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.RGB_565
-                inMutable = true
+                inMutable = false
             }
-            val decoded = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
-            val workingBitmap = if (decoded.isMutable) {
-                decoded
-            } else {
-                val copy = decoded.copy(Bitmap.Config.RGB_565, true)
-                decoded.recycle()
-                copy ?: return null
+            val decoded = BitmapFactory.decodeFile(file.absolutePath, options)
+            if (decoded != null) {
+                cachedWidgetBgBitmap = decoded
             }
-
-            // Pre-apply dimming directly onto bitmap to avoid extra Glance RemoteViews overlays
-            if (dimming > 0.05f) {
-                val canvas = Canvas(workingBitmap)
-                val paint = Paint().apply {
-                    color = Color.BLACK
-                    alpha = (dimming * 255).toInt().coerceIn(0, 255)
-                }
-                canvas.drawRect(0f, 0f, workingBitmap.width.toFloat(), workingBitmap.height.toFloat(), paint)
-            }
-
-            workingBitmap
+            decoded
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -159,6 +169,7 @@ object ImageUtils {
     }
 
     fun deleteBackgroundImage(context: Context): Boolean {
+        cachedWidgetBgBitmap = null
         val file = getBackgroundImageFile(context)
         return if (file.exists()) file.delete() else true
     }
