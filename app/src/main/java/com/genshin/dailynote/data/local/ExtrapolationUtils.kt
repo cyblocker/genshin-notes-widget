@@ -4,12 +4,27 @@ import android.content.Context
 import com.genshin.dailynote.R
 import com.genshin.dailynote.data.model.DailyNoteData
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
 object ExtrapolationUtils {
 
     const val RESIN_RECOVERY_SECONDS_PER_POINT = 480L // 8 minutes
+
+    private val STANDARD_REALM_COIN_SEC_RATES = listOf(
+        120.0,            // 30 / hr (20000+ Adeptal Energy)
+        3600.0 / 28.0,    // 28 / hr (~128.57s)
+        3600.0 / 26.0,    // 26 / hr (~138.46s)
+        150.0,            // 24 / hr (150s)
+        3600.0 / 22.0,    // 22 / hr (~163.64s)
+        180.0,            // 20 / hr (180s)
+        225.0,            // 16 / hr (225s)
+        300.0,            // 12 / hr (300s)
+        450.0,            // 8 / hr (450s)
+        900.0             // 4 / hr (900s)
+    )
 
     data class ExtrapolatedNote(
         val resin: Int,
@@ -103,7 +118,7 @@ object ExtrapolationUtils {
 
         // 4. Realm Currency (Home Coin) Extrapolation
         val maxHomeCoin = cachedData.max_home_coin
-        val cachedHomeCoin = cachedData.current_home_coin
+        val cachedHomeCoin = (cachedData.current_home_coin / 10) * 10
         val cachedHomeCoinRecoverySec = cachedData.homeCoinRecoverySeconds
 
         val remainingHomeCoinSec = if (cachedHomeCoin >= maxHomeCoin || cachedHomeCoinRecoverySec <= 0L) {
@@ -113,11 +128,24 @@ object ExtrapolationUtils {
         }
 
         val currentHomeCoin = if (cachedHomeCoinRecoverySec > 0L && maxHomeCoin > cachedHomeCoin) {
-            val coinsToRecover = maxHomeCoin - cachedHomeCoin
-            val gainedCoins = ((elapsedSeconds.toDouble() / cachedHomeCoinRecoverySec.toDouble()) * coinsToRecover).toInt()
-            min(maxHomeCoin, cachedHomeCoin + gainedCoins)
+            if (remainingHomeCoinSec <= 0L) {
+                maxHomeCoin
+            } else {
+                // In Genshin, remote coin count is reported in multiples of 10 (e.g. 300 represents [300, 309]).
+                // The recovery time indicates the exact countdown until maxHomeCoin is reached.
+                // We identify the standard generation rate (seconds per coin) matching remote recovery countdown.
+                val targetCenter = cachedHomeCoin + 4.5
+                val secPerCoin = STANDARD_REALM_COIN_SEC_RATES.minByOrNull { rate ->
+                    val estCoinsAtSync = maxHomeCoin - (cachedHomeCoinRecoverySec.toDouble() / rate)
+                    abs(estCoinsAtSync - targetCenter)
+                } ?: 120.0
+
+                val exactCoins = maxHomeCoin - (remainingHomeCoinSec.toDouble() / secPerCoin)
+                val tensCoins = (floor(exactCoins / 10.0) * 10.0).toInt()
+                tensCoins.coerceIn(cachedHomeCoin, maxHomeCoin)
+            }
         } else {
-            cachedHomeCoin
+            if (maxHomeCoin > 0 && cachedHomeCoin >= maxHomeCoin) maxHomeCoin else cachedHomeCoin
         }
 
         return ExtrapolatedNote(
@@ -147,15 +175,9 @@ object ExtrapolationUtils {
         if (note.currentHomeCoin >= note.maxHomeCoin) {
             return context.getString(R.string.realm_currency_full)
         }
-        val effectiveSeconds = if (note.homeCoinRecoverySeconds > 0L) {
-            note.homeCoinRecoverySeconds
-        } else {
-            // Standard trust rank max generation rate is 30 coins/hr (120s per coin)
-            val remainingCoins = (note.maxHomeCoin - note.currentHomeCoin).coerceAtLeast(0)
-            remainingCoins * 120L
-        }
+        val effectiveSeconds = note.homeCoinRecoverySeconds
         if (effectiveSeconds <= 0L) {
-            return context.getString(R.string.realm_currency_full)
+            return "--"
         }
         val days = effectiveSeconds / 86400
         val hours = (effectiveSeconds % 86400) / 3600
@@ -165,17 +187,17 @@ object ExtrapolationUtils {
             "zh" -> when {
                 days > 0 -> "${days}天${hours}时后满"
                 hours > 0 -> "${hours}小时${minutes}分后满"
-                else -> "${minutes}分后满"
+                else -> "${max(1L, minutes)}分后满"
             }
             "ja" -> when {
                 days > 0 -> "${days}日${hours}時間後"
                 hours > 0 -> "${hours}時間${minutes}分後"
-                else -> "${minutes}分後"
+                else -> "${max(1L, minutes)}分後"
             }
             else -> when {
                 days > 0 -> "${days}d ${hours}h"
                 hours > 0 -> "${hours}h ${minutes}m"
-                else -> "${minutes}m"
+                else -> "${max(1L, minutes)}m"
             }
         }
     }
